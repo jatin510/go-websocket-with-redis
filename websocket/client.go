@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -39,6 +38,7 @@ func NewClient(conn *websocket.Conn, wsServer *WsServer) *Client {
 	client := &Client{
 		conn:     conn,
 		wsServer: wsServer,
+		send:     make(chan []byte),
 	}
 
 	return client
@@ -46,7 +46,6 @@ func NewClient(conn *websocket.Conn, wsServer *WsServer) *Client {
 
 // ServeWs handles websocket requests from clients requests.
 func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
-	log.Println("server ws is called")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("Error upgrading websocket connection", err)
@@ -54,8 +53,8 @@ func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 
 	client := NewClient(conn, wsServer)
 
-	fmt.Println("New Client joined the ws!")
-	fmt.Println(client)
+	log.Println("New Client joined the ws!")
+	log.Println(client)
 
 	go client.writePump()
 	go client.readPump()
@@ -133,6 +132,7 @@ func (client *Client) writePump() {
 }
 
 func (client *Client) disconnect() {
+	log.Println("client disconnect")
 	client.wsServer.unregister <- client
 	// for room := range client.rooms {
 	// 	room.unregister <- client
