@@ -59,3 +59,7 @@ func (room *Room) broadcastToClientsInRoom(message []byte) {
 		client.send <- message
 	}
 }
+
+func (room *Room) GetName() string {
+	return room.name
+}
