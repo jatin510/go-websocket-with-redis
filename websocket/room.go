@@ -2,10 +2,6 @@ package websocket
 
 import "log"
 
-type Message struct {
-	message []byte
-}
-
 type Room struct {
 	name       string
 	clients    map[*Client]bool
@@ -34,7 +30,7 @@ func (room *Room) RunRoom() {
 			room.unregisterClientToRoom(client)
 
 		case message := <-room.broadcast:
-			room.broadcastToClientsInRoom(message.message)
+			room.broadcastToClientsInRoom(message.encode())
 
 		}
 	}
