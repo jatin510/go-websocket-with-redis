@@ -10,6 +10,7 @@ var app = new Vue({
     user: {
       name: "jatin",
     },
+    users: [],
   },
   mounted: function () {
     this.connectToWebsocket();
@@ -18,6 +19,7 @@ var app = new Vue({
     connect() {
       this.connectToWebsocket();
     },
+    
     connectToWebsocket() {
       this.ws = new WebSocket(this.serverUrl + "?name=" + this.user.name);
       this.ws.addEventListener("open", (event) => {
@@ -27,9 +29,11 @@ var app = new Vue({
         this.handleNewMessage(event);
       });
     },
+
     onWebsocketOpen() {
       console.log("connected to WS!");
     },
+
     handleNewMessage(event) {
       let data = event.data;
       data = data.split(/\r?\n/);
@@ -43,8 +47,9 @@ var app = new Vue({
         }
       }
     },
+
     sendMessage(room) {
-      console.log("send message",room)
+      console.log("send message", room);
       // send message to correct room.
       if (room.newMessage !== "") {
         this.ws.send(
@@ -57,6 +62,7 @@ var app = new Vue({
         room.newMessage = "";
       }
     },
+
     findRoom(roomName) {
       for (let i = 0; i < this.rooms.length; i++) {
         if (this.rooms[i].name === roomName) {
@@ -64,8 +70,9 @@ var app = new Vue({
         }
       }
     },
+
     joinRoom() {
-      console.log('join room ', this.roomInput)
+      console.log("join room ", this.roomInput);
       this.ws.send(
         JSON.stringify({ action: "join-room", message: this.roomInput })
       );
@@ -73,6 +80,7 @@ var app = new Vue({
       this.rooms.push({ name: this.roomInput, messages: [] });
       this.roomInput = "";
     },
+
     leaveRoom(room) {
       this.ws.send(
         JSON.stringify({ action: "leave-room", message: room.name })
@@ -82,6 +90,18 @@ var app = new Vue({
         if (this.rooms[i].name === room.name) {
           this.rooms.splice(i, 1);
           break;
+        }
+      }
+    },
+
+    handleUserJoined(msg) {
+      this.users.push(msg.sender);
+    },
+
+    handleUserLeft(msg) {
+      for (let i = 0; i < this.users.length; i++) {
+        if (this.users[i].id == msg.sender.id) {
+          this.users.splice(i, 1);
         }
       }
     },

@@ -37,6 +37,8 @@ func (server *WsServer) Run() {
 
 func (server *WsServer) registerClient(client *Client) {
 	log.Println("Registering client")
+	server.notifyClientJoined(client)
+	server.listOnlineClients(client)
 	server.clients[client] = true
 
 }
@@ -45,6 +47,8 @@ func (server *WsServer) unregisterClient(client *Client) {
 	log.Println("unregistering client")
 	if _, ok := server.clients[client]; ok {
 		delete(server.clients, client)
+		server.notifyClientLeft(client)
+
 	}
 }
 
@@ -74,4 +78,32 @@ func (server *WsServer) findRoomByName(name string) *Room {
 	}
 
 	return foundRoom
+}
+
+func (server *WsServer) notifyClientJoined(client *Client) {
+	message := &Message{
+		Action: UserJoinedAction,
+		Sender: client,
+	}
+
+	server.broadcastToClients(message.encode())
+}
+
+func (server *WsServer) notifyClientLeft(client *Client) {
+	message := &Message{
+		Action: UserLeftAction,
+		Sender: client,
+	}
+
+	server.broadcastToClients(message.encode())
+}
+
+func (server *WsServer) listOnlineClients(client *Client) {
+	for existingClient := range server.clients {
+		message := &Message{
+			Action: UserJoinedAction,
+			Sender: existingClient,
+		}
+		client.send <- message.encode()
+	}
 }

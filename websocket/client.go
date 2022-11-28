@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -24,6 +25,7 @@ const (
 )
 
 type Client struct {
+	ID       uuid.UUID `json:"id"`
 	conn     *websocket.Conn
 	wsServer *WsServer
 	send     chan []byte
@@ -39,6 +41,7 @@ var upgrader = websocket.Upgrader{
 func NewClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
 
 	client := &Client{
+		ID:       uuid.New(),
 		conn:     conn,
 		wsServer: wsServer,
 		send:     make(chan []byte),
