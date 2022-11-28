@@ -26,6 +26,7 @@ type Client struct {
 	conn     *websocket.Conn
 	wsServer *WsServer
 	send     chan []byte
+	rooms    map[*Room]bool
 }
 
 var upgrader = websocket.Upgrader{
@@ -39,6 +40,7 @@ func NewClient(conn *websocket.Conn, wsServer *WsServer) *Client {
 		conn:     conn,
 		wsServer: wsServer,
 		send:     make(chan []byte),
+		rooms:    make(map[*Room]bool),
 	}
 
 	return client
@@ -134,9 +136,9 @@ func (client *Client) writePump() {
 func (client *Client) disconnect() {
 	log.Println("client disconnect")
 	client.wsServer.unregister <- client
-	// for room := range client.rooms {
-	// 	room.unregister <- client
-	// }
+	for room := range client.rooms {
+		room.unregister <- client
+	}
 	close(client.send)
 	client.conn.Close()
 }
