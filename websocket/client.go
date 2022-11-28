@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -27,6 +28,7 @@ type Client struct {
 	wsServer *WsServer
 	send     chan []byte
 	rooms    map[*Room]bool
+	Name     string `json:"name"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -34,13 +36,14 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 4096,
 }
 
-func NewClient(conn *websocket.Conn, wsServer *WsServer) *Client {
+func NewClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
 
 	client := &Client{
 		conn:     conn,
 		wsServer: wsServer,
 		send:     make(chan []byte),
 		rooms:    make(map[*Room]bool),
+		Name:     name,
 	}
 
 	return client
@@ -53,7 +56,14 @@ func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 		log.Println("Error upgrading websocket connection", err)
 	}
 
-	client := NewClient(conn, wsServer)
+	name, ok := r.URL.Query()["name"]
+	log.Println("ok", ok)
+	if !ok || len(name[0]) < 1 {
+		log.Println("Url Param 'name' is missing")
+		return
+	}
+
+	client := NewClient(conn, wsServer, name[0])
 
 	log.Println("New Client joined the ws!")
 	log.Println(client)
@@ -83,7 +93,8 @@ func (client *Client) readPump() {
 			break
 		}
 
-		client.wsServer.broadcast <- jsonMessage
+		// client.wsServer.broadcast <- jsonMessage
+		client.handleNewMessage(jsonMessage)
 	}
 }
 
@@ -141,4 +152,59 @@ func (client *Client) disconnect() {
 	}
 	close(client.send)
 	client.conn.Close()
+}
+
+func (client *Client) handleNewMessage(jsonMessage []byte) {
+	var message Message
+	if err := json.Unmarshal(jsonMessage, &message); err != nil {
+		log.Printf("Error on unmarshal JSON message %s", err)
+	}
+
+	// Attach the client object as the sender of the messsage.
+	message.Sender = client
+
+	switch message.Action {
+	case SendMessageAction:
+		// The send-message action, this will send messages to a specific room now.
+		// Which room wil depend on the message Target
+		roomName := message.Target
+		// Use the ChatServer method to find the room, and if found, broadcast!
+		if room := client.wsServer.findRoomByName(roomName); room != nil {
+			room.broadcast <- &message
+		}
+	// We delegate the join and leave actions.
+	case JoinRoomAction:
+		client.handleJoinRoomMessage(message)
+
+	case LeaveRoomAction:
+		client.handleLeaveRoomMessage(message)
+	}
+}
+
+func (client *Client) handleJoinRoomMessage(message Message) {
+	roomName := message.Message
+
+	room := client.wsServer.findRoomByName(roomName)
+	if room == nil {
+		room = client.wsServer.createRoom(roomName)
+	}
+
+	client.rooms[room] = true
+	room.register <- client
+}
+func (client *Client) handleLeaveRoomMessage(message Message) {
+	room := client.wsServer.findRoomByName(message.Message)
+	if _, ok := client.rooms[room]; ok {
+		delete(client.rooms, room)
+	}
+
+	room.unregister <- client
+}
+
+// func (client *Client) GetId() string {
+// 	return client.ID.String()
+// }
+
+func (client *Client) GetName() string {
+	return client.Name
 }

@@ -1,6 +1,11 @@
 package websocket
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
+
+const welcomeMessage = "%s joined the room"
 
 type Room struct {
 	name       string
@@ -24,10 +29,13 @@ func (room *Room) RunRoom() {
 	for {
 		select {
 		case client := <-room.register:
-			room.registerClientToRoom(client)
+			room.registerClientInRoom(client)
 
 		case client := <-room.unregister:
-			room.unregisterClientToRoom(client)
+			room.unregisterClientInRoom(client)
+
+		case message := <-room.broadcast:
+			room.broadcastToClientsInRoom(message.encode())
 
 		case message := <-room.broadcast:
 			room.broadcastToClientsInRoom(message.encode())
@@ -36,13 +44,13 @@ func (room *Room) RunRoom() {
 	}
 }
 
-func (room *Room) registerClientToRoom(client *Client) {
+func (room *Room) registerClientInRoom(client *Client) {
 	log.Println("Registering client to room")
-	// room.notifyClientJoined(client)
+	room.notifyClientJoined(client)
 	room.clients[client] = true
 }
 
-func (room *Room) unregisterClientToRoom(client *Client) {
+func (room *Room) unregisterClientInRoom(client *Client) {
 	log.Println("unRegistering client to room")
 	if _, ok := room.clients[client]; ok {
 		delete(room.clients, client)
@@ -58,4 +66,15 @@ func (room *Room) broadcastToClientsInRoom(message []byte) {
 
 func (room *Room) GetName() string {
 	return room.name
+}
+
+func (room *Room) notifyClientJoined(client *Client) {
+	message := &Message{
+		Action:  SendMessageAction,
+		Target:  room.name,
+		Message: fmt.Sprintf(welcomeMessage, client.GetName()),
+	}
+	log.Println("notifyClientJoined message", message)
+	room.broadcastToClientsInRoom(message.encode())
+
 }

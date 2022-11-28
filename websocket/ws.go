@@ -57,7 +57,7 @@ func (server *WsServer) broadcastToClients(message []byte) {
 
 func (server *WsServer) createRoom(name string) *Room {
 	room := NewRoom(name)
-	room.RunRoom()
+	go room.RunRoom()
 	server.rooms[room] = true
 
 	return room
